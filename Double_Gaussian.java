@@ -39,24 +39,29 @@ public class Double_Gaussian implements PlugIn
     {
         im= IJ.getImage();
         imtitle=im.getTitle();
-        is = new ImageStack(im.getWidth(),im.getHeight(),im.getNSlices());
+        int frNb;
+        if(im.getNFrames()!=0)
+            frNb=im.getNFrames();
+        else
+            frNb=1;
+        int slNb;
+        if(im.getNSlices()!=0)
+            slNb=im.getNSlices();
+        else
+            slNb=1;
+        is = new ImageStack(im.getWidth(),im.getHeight(),slNb*frNb);
+        
         result=new ImagePlus();
         imp2= new ImagePlus();
         result.setTitle("Double Gaussian Filter of "+imtitle);
         while(doDialog())
         {
             imp=WindowManager.getImage(imtitle);
-            for (int i=1; i<=im.getNSlices(); i++)
+            for (int i=1; i<=slNb*frNb; i++)
             {
-                    imp.setSliceWithoutUpdate(i);
-                    ip= imp.getProcessor();
-                    fht=newFHT(ip);
-                    is2= new ImageStack(maxN,maxN,1);
-                    apply_filter((get_kernel(sig1,sig2,weight)), i);
-                    //is=is2.crop(0, 0,0, originalWidth-1, originalHeight-1,1);
-                    is.setPixels(crop((float[])is2.getPixels(1),maxN,originalWidth,originalHeight), i); 
-                    
+                do_Process(i);                
             }
+            
             result.setStack(is);
             result.show();
 			/* result.setStack(is);
@@ -67,7 +72,19 @@ public class Double_Gaussian implements PlugIn
 			else
 				result.updateAndRepaintWindow();
 			} */
-		}
+        }
+    }
+    
+    void do_Process(int i)
+    {
+        
+        imp.setSlice/*WithoutUpdate*/(i);
+        ip= imp.getProcessor();
+        fht=newFHT(ip);
+        is2= new ImageStack(maxN,maxN,1);
+        apply_filter((get_kernel(sig1,sig2,weight)), i);
+        //is=is2.crop(0, 0,0, originalWidth-1, originalHeight-1,1);
+        is.setPixels(crop((float[])is2.getPixels(1),maxN,originalWidth,originalHeight), i); 
     }
     
     public boolean doDialog()
@@ -154,7 +171,6 @@ public class Double_Gaussian implements PlugIn
     ImageProcessor pad(ImageProcessor ip) {
         originalWidth = ip.getWidth();
         originalHeight = ip.getHeight();
-        System.out.println(originalWidth);
         maxN = Math.max(originalWidth, originalHeight);
         int i = 2;
         while(i<maxN) i *= 2;
