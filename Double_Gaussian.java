@@ -19,6 +19,7 @@ public class Double_Gaussian implements PlugIn
     ImageStack is2;
     ImagePlus imp2;
     FHT fht;
+    ImageProcessor PS;
     double sigma1=0.4;
     double sigma2=0.2;
     double sig1=0.4;
@@ -34,10 +35,14 @@ public class Double_Gaussian implements PlugIn
     private int slice = 1;
     private boolean doFFT;
     private int maxN=2;
+    
+    float[][] kernel;
+    float[] kernel1d;
 
     public void run(String arg) 
     {
         im= IJ.getImage();
+        pad(im.getProcessor());
         imtitle=im.getTitle();
         int frNb;
         if(im.getNFrames()!=0)
@@ -57,9 +62,42 @@ public class Double_Gaussian implements PlugIn
         while(doDialog())
         {
             imp=WindowManager.getImage(imtitle);
+            get_kernel(sig1,sig2,weight);
+            int currentSlice = imp.getCurrentSlice();
             for (int i=1; i<=slNb*frNb; i++)
             {
-                do_Process(i);                
+                do_Process(i);
+                if (i == currentSlice && show_filter)
+                {
+                    byte[] PSPixels = (byte[])PS.getPixels();
+                    float[] resPS = new float[PSPixels.length];
+                    for (int k=0; k<PSPixels.length; k++)
+                    {   
+                        short PSPixel = PSPixels[k];
+                        if (PSPixel < 0)
+                            PSPixel += 256;
+                        resPS[k] = PSPixel*kernel1d[k];
+                    }
+                    ImageStack fSt;
+                    filter = WindowManager.getImage("DG Filter");
+                    if (filter==null)
+                    {
+                        filter = new ImagePlus();
+                        fSt = new ImageStack(maxN, maxN, 1);
+                    }
+                    else
+                    {
+                        fSt = filter.getImageStack();
+                    }
+                    fSt.setPixels(resPS, 1);
+                    filter.setStack(fSt);
+                    filter.setTitle("DG Filter");
+                    if (WindowManager.getImage("DG Filter") == null)
+                        filter.show();
+                    filter.updateAndRepaintWindow();
+                    
+                    
+                }
             }
             
             result.setStack(is);
@@ -78,11 +116,11 @@ public class Double_Gaussian implements PlugIn
     void do_Process(int i)
     {
         
-        imp.setSlice/*WithoutUpdate*/(i);
+        imp.setSliceWithoutUpdate(i);
         ip= imp.getProcessor();
         fht=newFHT(ip);
         is2= new ImageStack(maxN,maxN,1);
-        apply_filter((get_kernel(sig1,sig2,weight)), i);
+        apply_filter(kernel, i);
         //is=is2.crop(0, 0,0, originalWidth-1, originalHeight-1,1);
         is.setPixels(crop((float[])is2.getPixels(1),maxN,originalWidth,originalHeight), i); 
     }
@@ -119,11 +157,11 @@ public class Double_Gaussian implements PlugIn
         return true;
         
     }
-    public float[][] get_kernel(double sigma1, double sigma2, double weight)
+    public void get_kernel(double sigma1, double sigma2, double weight)
     {
         int size=maxN;
-        float[][] kernel=new float[size][size];
-        float[] kernel1d=new float[size*size];
+        kernel=new float[size][size];
+        kernel1d=new float[size*size];
         for(int row=0;row<size;row++)
         {
             for(int col=0;col<size;col++)
@@ -132,32 +170,15 @@ public class Double_Gaussian implements PlugIn
                 kernel[row][col]=(float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
                 kernel1d[row*size+col]=(float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
             }
-        }
-        
-        if (show_filter)
-        {
-            filter = WindowManager.getImage("DG Filter");
+        }            
             
-            if (filter==null)
-                new ImagePlus("DG Filter", new FloatProcessor(kernel)).show();
-            else
-            {
-                ImageStack fSt=filter.getImageStack();
-                fSt.setPixels(kernel1d, 1);
-                filter.setStack(fSt);
-                filter.updateAndRepaintWindow();
-            }
-                
-        }
-            
-            
-        return kernel;   
     }
     
     public void apply_filter(float[][] kernel, int slice_number)
     {
         
         fht.transform();
+        PS = fht.getPowerSpectrum();
         fht.swapQuadrants();
         fht=fht.multiply(new FHT(new FloatProcessor(kernel)));      
         fht.swapQuadrants();
