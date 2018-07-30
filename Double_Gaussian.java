@@ -57,8 +57,10 @@ public class Double_Gaussian implements PlugIn
         is = new ImageStack(im.getWidth(),im.getHeight(),slNb*frNb);
         
         result=new ImagePlus();
+        result.setCalibration(im.getCalibration());
+        result.setFileInfo(im.getFileInfo());
         imp2= new ImagePlus();
-        result.setTitle("Double Gaussian Filter of "+imtitle);
+        result.setTitle("Double-Gaussian-Filter-of-"+imtitle);
         while(doDialog())
         {
             imp=WindowManager.getImage(imtitle);
