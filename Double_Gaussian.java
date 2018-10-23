@@ -27,6 +27,7 @@ public class Double_Gaussian implements PlugIn
     double sig2=0.2;
     double weight=0.3;
     boolean show_filter=false;
+	boolean withFFT=false;
     String imtitle;
     
     private boolean padded;
@@ -36,7 +37,7 @@ public class Double_Gaussian implements PlugIn
     private int slice = 1;
     private boolean doFFT;
     private int maxN=2;
-    
+
     float[][] kernel;
     float[] kernel1d;
 
@@ -79,6 +80,8 @@ public class Double_Gaussian implements PlugIn
                         short PSPixel = PSPixels[k];
                         if (PSPixel < 0)
                             PSPixel += 256;
+                        if (!withFFT)
+                        	PSPixel=1;
                         resPS[k] = PSPixel*kernel1d[k];
                     }
                     ImageStack fSt;
@@ -145,13 +148,14 @@ public class Double_Gaussian implements PlugIn
         gd.addNumericField("sigma2 (small)", sigma2, 2);
         gd.addNumericField("weight", weight, 2);
         gd.addCheckbox("show filter", show_filter);
+        gd.addCheckbox("add FFT?", withFFT);
         gd.showDialog();
         
         sigma1=gd.getNextNumber();
         sigma2=gd.getNextNumber();
         weight=gd.getNextNumber();
         show_filter=gd.getNextBoolean();
-        
+        withFFT=gd.getNextBoolean();
         sig1=sigma1*sigma1;
         sig2=sigma2*sigma2;
         if(gd.wasCanceled())
