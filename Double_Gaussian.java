@@ -5,6 +5,7 @@ import static ij.measure.Measurements.MEAN;
 import java.awt.*;
 import ij.plugin.*;
 import ij.plugin.frame.*;
+import java.util.ArrayList;
 //import java.util.Arrays;
 
 public class Double_Gaussian implements PlugIn 
@@ -120,6 +121,7 @@ public class Double_Gaussian implements PlugIn
         
         imp.setSliceWithoutUpdate(i);
         ip= imp.getProcessor();
+        
         fht=newFHT(ip);
         is2= new ImageStack(maxN,maxN,1);
         apply_filter(kernel, i);
@@ -132,7 +134,7 @@ public class Double_Gaussian implements PlugIn
         
         NonBlockingGenericDialog gd = new NonBlockingGenericDialog(getClass().getSimpleName());
         gd.setSmartRecording(true);
-	if(loc != null)
+        if(loc != null)
         {
             gd.centerDialog(false);
             gd.setLocation(loc.x+10,loc.y+10); //compensate the drift
@@ -169,11 +171,23 @@ public class Double_Gaussian implements PlugIn
             for(int col=0;col<size;col++)
             {
                 double dist=Math.sqrt((col-size/2)*(col-size/2)+(row-size/2)*(row-size/2))/(size/2);
-                kernel[row][col]=(float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
-                kernel1d[row*size+col]=(float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
+                if (sigma1==0)
+				 {
+					 kernel[row][col]=(float)(1-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
+					 kernel1d[row*size+col]=(float)(1-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
+				 }
+                else
+                {
+                	kernel[row][col]=(float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
+                	kernel1d[row*size+col]=(float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
+                }
+                
+                
             }
-        }            
             
+        }    
+        kernel[size/2][size/2]=1;
+        kernel1d[size*size/2]=1;    
     }
     
     public void apply_filter(float[][] kernel, int slice_number)
@@ -257,6 +271,32 @@ public class Double_Gaussian implements PlugIn
         }
         
         return ar2;
+    }
+    
+    void remove_NaNs(float[] imarray)
+    {
+    	float sum=0;
+    	int counter=0;
+    	int index=0;
+    	ArrayList<Integer> nanlist=new ArrayList<Integer>();
+    	for(float el : imarray)
+    	{
+    		if (Float.isNaN(el))
+    			nanlist.add(index);
+    		else
+    		{
+    			sum+=el;
+    			counter+=1;
+    		}
+    		index+=1;
+    	}
+    	float mean=sum/counter;
+    for (Integer ind : nanlist)
+    {
+    	imarray[ind]=mean;
+    }
+    
+    	   
     }
   
     
