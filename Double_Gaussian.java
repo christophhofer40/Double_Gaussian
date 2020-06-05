@@ -28,6 +28,7 @@ public class Double_Gaussian implements PlugIn
     double weight=0.3;
     boolean show_filter=false;
 	boolean withFFT=false;
+	boolean bnorm = false;
     String imtitle;
     
     private boolean padded;
@@ -149,6 +150,7 @@ public class Double_Gaussian implements PlugIn
         gd.addNumericField("weight", weight, 2);
         gd.addCheckbox("show filter", show_filter);
         gd.addCheckbox("add FFT?", withFFT);
+	gd.addCheckbox("keep mean?", bnorm);
         gd.showDialog();
         
         sigma1=gd.getNextNumber();
@@ -156,6 +158,7 @@ public class Double_Gaussian implements PlugIn
         weight=gd.getNextNumber();
         show_filter=gd.getNextBoolean();
         withFFT=gd.getNextBoolean();
+	bnorm=gd.getNextBoolean();
         sig1=sigma1*sigma1;
         sig2=sigma2*sigma2;
         if(gd.wasCanceled())
@@ -170,28 +173,43 @@ public class Double_Gaussian implements PlugIn
         int size=maxN;
         kernel=new float[size][size];
         kernel1d=new float[size*size];
+	float sum = 0f;
+	float val;
         for(int row=0;row<size;row++)
         {
             for(int col=0;col<size;col++)
             {
                 double dist=Math.sqrt((col-size/2)*(col-size/2)+(row-size/2)*(row-size/2))/(size/2);
                 if (sigma1==0)
-				 {
-					 kernel[row][col]=(float)(1-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
-					 kernel1d[row*size+col]=(float)(1-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
-				 }
+		{
+			val = (float)(1-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
+		}
                 else
                 {
-                	kernel[row][col]=(float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
-                	kernel1d[row*size+col]=(float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
+			val = (float)(Math.exp(-0.5*dist*dist/(sigma1*sigma1))-(1.0-weight)*Math.exp(-0.5*dist*dist/(sigma2*sigma2)));
                 }
-                
-                
+		kernel[row][col] = val;
+                kernel1d[row*size+col] = val;
+                sum+=val;
             }
             
-        }    
-        kernel[size/2][size/2]=1;
-        kernel1d[size*size/2]=1;    
+        }
+	for(int row=0;row<size;row++)
+        {
+            for(int col=0;col<size;col++)
+            {
+		kernel[row][col]/=sum;
+		kernel1d[row*size+col]/=sum;   
+            }
+            
+        }
+	
+	    
+	if (bnorm)
+	{
+        	kernel[size/2][size/2]=1;
+        	kernel1d[size*size/2]=1;    
+	}
     }
     
     public void apply_filter(float[][] kernel, int slice_number)
